@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -86,6 +87,7 @@ class FlashcardManager {
 }
 
 const FlashcardSystem = ({ subject, onClose }) => {
+  const { theme } = useTheme();
   const [flashcardManager] = useState(new FlashcardManager());
   const [currentCard, setCurrentCard] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -170,119 +172,145 @@ const FlashcardSystem = ({ subject, onClose }) => {
 
   if (isAddingCard) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Add New Flashcard</Text>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.title, { color: theme.text }]}>Add New Flashcard</Text>
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Front (Question):</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Front (Question):</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { 
+              backgroundColor: theme.surface,
+              color: theme.text,
+              borderColor: theme.border
+            }]}
             value={newCard.front}
             onChangeText={(text) => setNewCard({ ...newCard, front: text })}
             placeholder="Enter question or prompt"
+            placeholderTextColor={theme.textSecondary}
             multiline
           />
-          <Text style={styles.label}>Back (Answer):</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Back (Answer):</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { 
+              backgroundColor: theme.surface,
+              color: theme.text,
+              borderColor: theme.border
+            }]}
             value={newCard.back}
             onChangeText={(text) => setNewCard({ ...newCard, back: text })}
             placeholder="Enter answer or explanation"
+            placeholderTextColor={theme.textSecondary}
             multiline
           />
         </View>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={addNewCard}>
+          <TouchableOpacity 
+            style={[styles.button, { backgroundColor: theme.primary }]} 
+            onPress={addNewCard}
+          >
             <Text style={styles.buttonText}>Save Card</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.button, styles.cancelButton]} 
+            style={[styles.button, { backgroundColor: theme.surface }]} 
             onPress={() => setIsAddingCard(false)}
           >
-            <Text style={styles.buttonText}>Cancel</Text>
+            <Text style={[styles.buttonText, { color: theme.text }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  if (!currentCard && reviewCards.length === 0) {
+  if (!currentCard) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Flashcards</Text>
-        <Text style={styles.subtitle}>No cards to review!</Text>
-        <TouchableOpacity style={styles.button} onPress={() => setIsAddingCard(true)}>
-          <Text style={styles.buttonText}>Add New Card</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={onClose}>
-          <Text style={styles.buttonText}>Close</Text>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.title, { color: theme.text }]}>Flashcards</Text>
+        {reviewCards.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              No cards due for review.
+            </Text>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: theme.primary }]}
+              onPress={() => setIsAddingCard(true)}
+            >
+              <Text style={styles.buttonText}>Create New Card</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+            Loading cards...
+          </Text>
+        )}
+        <TouchableOpacity 
+          style={[styles.closeButton, { backgroundColor: theme.surface }]}
+          onPress={onClose}
+        >
+          <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Flashcard Review</Text>
-      <Text style={styles.progress}>
-        {reviewCards.findIndex(card => card.id === currentCard?.id) + 1} / {reviewCards.length}
-      </Text>
-
-      <TouchableOpacity style={styles.cardContainer} onPress={flipCard}>
-        <Animated.View style={[styles.card, styles.cardFront, frontAnimatedStyle]}>
-          <LinearGradient
-            colors={['#667eea', '#764ba2']}
-            style={styles.cardGradient}
-          >
-            <Text style={styles.cardText}>{currentCard?.front}</Text>
-            <Text style={styles.cardHint}>Tap to reveal answer</Text>
-          </LinearGradient>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Flashcards</Text>
+      <View style={styles.cardContainer}>
+        <Animated.View 
+          style={[
+            styles.card,
+            frontAnimatedStyle,
+            { backgroundColor: theme.surface }
+          ]}
+        >
+          <Text style={[styles.cardText, { color: theme.text }]}>{currentCard.front}</Text>
         </Animated.View>
-
-        <Animated.View style={[styles.card, styles.cardBack, backAnimatedStyle]}>
-          <LinearGradient
-            colors={['#f093fb', '#f5576c']}
-            style={styles.cardGradient}
-          >
-            <Text style={styles.cardText}>{currentCard?.back}</Text>
-            <Text style={styles.cardHint}>Tap to see question</Text>
-          </LinearGradient>
+        <Animated.View 
+          style={[
+            styles.card,
+            styles.cardBack,
+            backAnimatedStyle,
+            { backgroundColor: theme.surface }
+          ]}
+        >
+          <Text style={[styles.cardText, { color: theme.text }]}>{currentCard.back}</Text>
         </Animated.View>
+      </View>
+
+      <TouchableOpacity 
+        style={[styles.flipButton, { backgroundColor: theme.primary }]}
+        onPress={flipCard}
+      >
+        <Text style={styles.buttonText}>Flip Card</Text>
       </TouchableOpacity>
 
       {showAnswer && (
-        <View style={styles.reviewContainer}>
-          <Text style={styles.reviewTitle}>How well did you know this?</Text>
-          <View style={styles.qualityButtons}>
-            <TouchableOpacity 
-              style={[styles.qualityButton, styles.againButton]} 
-              onPress={() => handleReview(1)}
-            >
-              <Text style={styles.qualityButtonText}>Again</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.qualityButton, styles.hardButton]} 
-              onPress={() => handleReview(2)}
-            >
-              <Text style={styles.qualityButtonText}>Hard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.qualityButton, styles.goodButton]} 
-              onPress={() => handleReview(3)}
-            >
-              <Text style={styles.qualityButtonText}>Good</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.qualityButton, styles.easyButton]} 
-              onPress={() => handleReview(4)}
-            >
-              <Text style={styles.qualityButtonText}>Easy</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.ratingContainer}>
+          <TouchableOpacity 
+            style={[styles.ratingButton, { backgroundColor: theme.error }]}
+            onPress={() => handleReview(1)}
+          >
+            <Text style={styles.buttonText}>Hard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.ratingButton, { backgroundColor: theme.warning }]}
+            onPress={() => handleReview(3)}
+          >
+            <Text style={styles.buttonText}>Good</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.ratingButton, { backgroundColor: theme.success }]}
+            onPress={() => handleReview(5)}
+          >
+            <Text style={styles.buttonText}>Easy</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingCard(true)}>
-        <Text style={styles.addButtonText}>+ Add Card</Text>
+      <TouchableOpacity 
+        style={[styles.closeButton, { backgroundColor: theme.surface }]}
+        onPress={onClose}
+      >
+        <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
       </TouchableOpacity>
     </View>
   );
@@ -292,150 +320,108 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: '#666',
+    fontWeight: '600',
     marginBottom: 20,
-  },
-  progress: {
-    fontSize: 16,
     textAlign: 'center',
-    color: '#007AFF',
-    marginBottom: 20,
   },
   cardContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
   },
   card: {
-    width: width - 80,
-    height: 300,
-    borderRadius: 20,
+    width: width - 40,
+    height: 200,
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'absolute',
     backfaceVisibility: 'hidden',
   },
-  cardFront: {
-    backgroundColor: '#667eea',
-  },
   cardBack: {
-    backgroundColor: '#f093fb',
-  },
-  cardGradient: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    transform: [{ rotateY: '180deg' }],
   },
   cardText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 18,
     textAlign: 'center',
+  },
+  flipButton: {
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
     marginBottom: 20,
   },
-  cardHint: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-  },
-  reviewContainer: {
-    marginTop: 20,
-  },
-  reviewTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  qualityButtons: {
+  ratingContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  qualityButton: {
+  ratingButton: {
     padding: 15,
-    borderRadius: 10,
-    minWidth: 70,
+    borderRadius: 12,
     alignItems: 'center',
+    width: '30%',
   },
-  againButton: {
-    backgroundColor: '#FF3B30',
-  },
-  hardButton: {
-    backgroundColor: '#FF9500',
-  },
-  goodButton: {
-    backgroundColor: '#34C759',
-  },
-  easyButton: {
-    backgroundColor: '#007AFF',
-  },
-  qualityButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  addButtonText: {
-    color: '#fff',
+  buttonText: {
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   inputContainer: {
     flex: 1,
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontWeight: '600',
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 15,
-    marginBottom: 15,
+    marginBottom: 20,
     fontSize: 16,
     minHeight: 100,
-    textAlignVertical: 'top',
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   button: {
-    backgroundColor: '#007AFF',
     padding: 15,
-    borderRadius: 10,
-    minWidth: 100,
+    borderRadius: 12,
     alignItems: 'center',
+    flex: 0.48,
   },
-  cancelButton: {
-    backgroundColor: '#FF3B30',
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  closeButton: {
-    backgroundColor: '#8E8E93',
-  },
-  buttonText: {
-    color: '#fff',
+  emptyText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

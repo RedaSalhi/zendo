@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-na
 import { LinearGradient } from 'expo-linear-gradient';
 import StudySessionManager from './StudySessionManager';
 import FlashcardSystem from './FlashcardSystem';
-import VoiceNotes from './VoiceNotes';
 import StudyChecklists from './StudyChecklists';
 
 const StudySession = ({ subject, topics, onSessionEnd, template }) => {
@@ -105,12 +104,6 @@ const StudySession = ({ subject, topics, onSessionEnd, template }) => {
         name: 'Flashcards',
         icon: '',
         component: FlashcardSystem,
-      },
-      {
-        id: 'voiceNotes',
-        name: 'Voice Notes',
-        icon: '',
-        component: VoiceNotes,
       },
       {
         id: 'checklists',

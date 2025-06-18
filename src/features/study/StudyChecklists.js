@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../context/ThemeContext';
 
 class StudyChecklistManager {
   constructor() {
@@ -122,6 +123,7 @@ class StudyChecklistManager {
 }
 
 const StudyChecklists = ({ subject, onClose }) => {
+  const { theme } = useTheme();
   const [checklistManager] = useState(new StudyChecklistManager());
   const [activeTab, setActiveTab] = useState('preStudy');
   const [checklists, setChecklists] = useState([]);
@@ -232,181 +234,127 @@ const StudyChecklists = ({ subject, onClose }) => {
   const filteredChecklists = checklists.filter(c => c.type === activeTab);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Study Checklists</Text>
-
-      {/* Tab Navigation */}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Study Checklists</Text>
+      
       <View style={styles.tabContainer}>
-        {Object.keys(checklistManager.templates).map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[styles.tab, activeTab === type && styles.activeTab]}
-            onPress={() => setActiveTab(type)}
-          >
-            <Text style={[styles.tabText, activeTab === type && styles.activeTabText]}>
-              {getChecklistTypeName(type)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'preStudy' && [styles.activeTab, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setActiveTab('preStudy')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'preStudy' ? styles.activeTabText : { color: theme.text }
+          ]}>Pre-Study</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'postStudy' && [styles.activeTab, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setActiveTab('postStudy')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'postStudy' ? styles.activeTabText : { color: theme.text }
+          ]}>Post-Study</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'examPrep' && [styles.activeTab, { backgroundColor: theme.primary }]
+          ]}
+          onPress={() => setActiveTab('examPrep')}
+        >
+          <Text style={[
+            styles.tabText,
+            activeTab === 'examPrep' ? styles.activeTabText : { color: theme.text }
+          ]}>Exam Prep</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Create New Checklist */}
       <TouchableOpacity
-        style={styles.createButton}
+        style={[styles.createButton, { backgroundColor: theme.primary }]}
         onPress={() => setIsCreating(true)}
       >
-        <LinearGradient
-          colors={['#007AFF', '#5AC8FA']}
-          style={styles.createGradient}
-        >
-          <Text style={styles.createButtonText}>+ Create New Checklist</Text>
-        </LinearGradient>
+        <Text style={styles.createButtonText}>+ Create New Checklist</Text>
       </TouchableOpacity>
 
-      {/* Checklists List */}
+      {checklists.length === 0 && !isCreating && (
+        <Text style={[styles.emptyMessage, { color: theme.textSecondary }]}>
+          No {activeTab === 'preStudy' ? 'pre-study' : activeTab === 'postStudy' ? 'post-study' : 'exam prep'} checklists yet. Create one to get started!
+        </Text>
+      )}
+
       <ScrollView style={styles.checklistsContainer}>
-        {filteredChecklists.map((checklist) => (
-          <View key={checklist.id} style={styles.checklistItem}>
-            <View style={styles.checklistHeader}>
-              <Text style={styles.checklistTitle}>
-                {getChecklistTypeName(checklist.type)} Checklist
-              </Text>
-              <View style={styles.checklistActions}>
-                <Text style={styles.progressText}>
-                  {Math.round(checklist.progress)}%
+        {checklists
+          .filter(checklist => checklist.type === activeTab)
+          .map(checklist => (
+            <View 
+              key={checklist.id} 
+              style={[styles.checklistCard, { backgroundColor: theme.surface }]}
+            >
+              <View style={styles.checklistHeader}>
+                <Text style={[styles.checklistTitle, { color: theme.text }]}>
+                  {subject} - {getChecklistTypeName(checklist.type)}
                 </Text>
                 <TouchableOpacity
-                  style={styles.deleteButton}
                   onPress={() => deleteChecklist(checklist.id)}
+                  style={styles.deleteButton}
                 >
-                  <Text style={styles.deleteButtonText}>🗑️</Text>
+                  <Text style={[styles.deleteButtonText, { color: theme.error }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${checklist.progress}%` }
-                ]} 
-              />
-            </View>
-
-            {checklist.items.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.checklistItemRow}
-                onPress={() => toggleItem(checklist.id, item.id)}
-              >
-                <View style={[
-                  styles.checkbox,
-                  item.completed && styles.checkboxCompleted
-                ]}>
-                  {item.completed && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={[
-                  styles.itemText,
-                  item.completed && styles.itemTextCompleted
-                ]}>
-                  {item.text}
-                </Text>
-                <View style={[
-                  styles.categoryBadge,
-                  { backgroundColor: getCategoryColor(item.category) }
-                ]}>
-                  <Text style={styles.categoryText}>{item.category}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <Text style={styles.checklistDate}>
-              Created: {formatDate(checklist.createdAt)}
-            </Text>
-          </View>
-        ))}
-
-        {filteredChecklists.length === 0 && (
-          <Text style={styles.emptyText}>
-            No {getChecklistTypeName(activeTab).toLowerCase()} checklists yet. Create one to get started!
-          </Text>
-        )}
-      </ScrollView>
-
-      {/* Create Checklist Modal */}
-      {isCreating && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Create New Checklist</Text>
-            
-            <Text style={styles.label}>Checklist Type:</Text>
-            <View style={styles.typeSelector}>
-              {Object.keys(checklistManager.templates).map((type) => (
+              {checklist.items.map(item => (
                 <TouchableOpacity
-                  key={type}
+                  key={item.id}
                   style={[
-                    styles.typeOption,
-                    newChecklist.type === type && styles.selectedType
+                    styles.checklistItem,
+                    { borderBottomColor: theme.border }
                   ]}
-                  onPress={() => setNewChecklist({ ...newChecklist, type })}
+                  onPress={() => toggleItem(checklist.id, item.id)}
                 >
+                  <View style={[
+                    styles.checkbox,
+                    item.completed && { backgroundColor: theme.primary },
+                    { borderColor: theme.primary }
+                  ]} />
                   <Text style={[
-                    styles.typeText,
-                    newChecklist.type === type && styles.selectedTypeText
+                    styles.itemText,
+                    { color: theme.text },
+                    item.completed && styles.completedItemText
                   ]}>
-                    {getChecklistTypeName(type)}
+                    {item.text}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
 
-            <Text style={styles.label}>Custom Items (Optional):</Text>
-            <View style={styles.customItemContainer}>
-              <TextInput
-                style={styles.customItemInput}
-                value={customItem}
-                onChangeText={setCustomItem}
-                placeholder="Add custom checklist item..."
-                onSubmitEditing={addCustomItem}
-              />
-              <TouchableOpacity style={styles.addItemButton} onPress={addCustomItem}>
-                <Text style={styles.addItemButtonText}>Add</Text>
-              </TouchableOpacity>
-            </View>
-
-            {newChecklist.customItems.length > 0 && (
-              <View style={styles.customItemsList}>
-                {newChecklist.customItems.map((item, index) => (
-                  <View key={index} style={styles.customItemRow}>
-                    <Text style={styles.customItemText}>{item}</Text>
-                    <TouchableOpacity onPress={() => removeCustomItem(index)}>
-                      <Text style={styles.removeItemText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      backgroundColor: theme.primary,
+                      width: `${checklist.progress}%` 
+                    }
+                  ]} 
+                />
               </View>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsCreating(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.createModalButton]}
-                onPress={createNewChecklist}
-              >
-                <Text style={styles.modalButtonText}>Create</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      )}
+          ))}
+      </ScrollView>
 
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeButtonText}>Close</Text>
+      <TouchableOpacity
+        style={[styles.closeButton, { backgroundColor: theme.surface }]}
+        onPress={onClose}
+      >
+        <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
       </TouchableOpacity>
     </View>
   );
@@ -416,290 +364,123 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
     marginBottom: 20,
+    textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    padding: 5,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 15,
+    padding: 4,
   },
   tab: {
     flex: 1,
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#007AFF',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
-    color: '#666',
   },
   activeTabText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontWeight: '600',
   },
   createButton: {
-    marginBottom: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  createGradient: {
     padding: 15,
+    borderRadius: 12,
     alignItems: 'center',
+    marginBottom: 20,
   },
   createButtonText: {
-    color: '#fff',
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  emptyMessage: {
+    textAlign: 'center',
+    fontSize: 15,
+    marginTop: 20,
   },
   checklistsContainer: {
     flex: 1,
   },
-  checklistItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 15,
-    padding: 20,
+  checklistCard: {
+    borderRadius: 12,
     marginBottom: 15,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   checklistHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   checklistTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  checklistActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  progressText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginRight: 10,
+    fontSize: 16,
+    fontWeight: '600',
   },
   deleteButton: {
     padding: 5,
   },
   deleteButtonText: {
-    fontSize: 16,
+    fontSize: 14,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 2,
+    borderRadius: 11,
+    marginRight: 12,
+  },
+  itemText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  completedItemText: {
+    opacity: 0.6,
+    textDecorationLine: 'line-through',
   },
   progressBar: {
-    height: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
-    marginBottom: 15,
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 2,
+    marginTop: 15,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#34C759',
-    borderRadius: 3,
-  },
-  checklistItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxCompleted: {
-    backgroundColor: '#34C759',
-    borderColor: '#34C759',
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  itemText: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  itemTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#666',
-  },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 10,
-  },
-  categoryText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  checklistDate: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 10,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
-    marginTop: 20,
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  typeOption: {
-    flex: 1,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  selectedType: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  typeText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  selectedTypeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  customItemContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  customItemInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 10,
-    marginRight: 10,
-  },
-  addItemButton: {
-    backgroundColor: '#34C759',
-    padding: 10,
-    borderRadius: 8,
-    justifyContent: 'center',
-  },
-  addItemButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  customItemsList: {
-    marginBottom: 20,
-  },
-  customItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 5,
-  },
-  customItemText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  removeItemText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  modalButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#8E8E93',
-  },
-  createModalButton: {
-    backgroundColor: '#007AFF',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    borderRadius: 2,
   },
   closeButton: {
-    backgroundColor: '#8E8E93',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
   },
   closeButtonText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
 });
 

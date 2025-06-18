@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../context/ThemeContext';
 
 class TimerTemplateManager {
   constructor() {
@@ -148,6 +149,7 @@ class TimerTemplateManager {
 }
 
 const TimerTemplates = ({ subject, onTemplateSelect, onClose }) => {
+  const { theme } = useTheme();
   const [templateManager] = useState(new TimerTemplateManager());
   const [templates, setTemplates] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -161,7 +163,6 @@ const TimerTemplates = ({ subject, onTemplateSelect, onClose }) => {
     sessionsBeforeLongBreak: 4,
     category: 'focus',
     icon: '⏰',
-    color: '#007AFF',
   });
 
   useEffect(() => {
@@ -226,7 +227,6 @@ const TimerTemplates = ({ subject, onTemplateSelect, onClose }) => {
       sessionsBeforeLongBreak: 4,
       category: 'focus',
       icon: '⏰',
-      color: '#007AFF',
     });
     setIsCreating(false);
     initializeTemplates();
@@ -268,230 +268,86 @@ const TimerTemplates = ({ subject, onTemplateSelect, onClose }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Timer Templates</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.topSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          {getCategories().map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.categoryButton,
+                { backgroundColor: theme.surface },
+                selectedCategory === category && { backgroundColor: theme.primary }
+              ]}
+              onPress={() => setSelectedCategory(category)}
+            >
+              <View style={styles.categoryContent}>
+                <Text style={styles.categoryIcon}>{getCategoryIcon(category)}</Text>
+                <Text style={[
+                  styles.categoryText,
+                  { color: selectedCategory === category ? '#FFF' : theme.text }
+                ]}>
+                  {getCategoryName(category)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-      {/* Category Filter */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryContainer}
-      >
-        {getCategories().map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryButton,
-              selectedCategory === category && styles.selectedCategory
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text style={[
-              styles.categoryText,
-              selectedCategory === category && styles.selectedCategoryText
-            ]}>
-              {category === 'all' ? '📋' : getCategoryIcon(category)} {getCategoryName(category)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Create Custom Template Button */}
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => setIsCreating(true)}
-      >
-        <LinearGradient
-          colors={['#007AFF', '#5AC8FA']}
-          style={styles.createGradient}
-        >
-          <Text style={styles.createButtonText}>+ Create Custom Template</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Templates List */}
-      <ScrollView style={styles.templatesContainer}>
+      <View style={styles.mainContent}>
         {filteredTemplates.map((template) => (
           <TouchableOpacity
             key={template.id}
-            style={styles.templateItem}
+            style={[styles.templateCard, { backgroundColor: theme.surface }]}
             onPress={() => handleTemplateSelect(template)}
           >
-            <LinearGradient
-              colors={[template.color, `${template.color}80`]}
-              style={styles.templateGradient}
-            >
-              <View style={styles.templateHeader}>
-                <Text style={styles.templateIcon}>{template.icon}</Text>
-                <Text style={styles.templateName}>{template.name}</Text>
-                {template.isCustom && (
-                  <TouchableOpacity
-                    style={styles.deleteTemplateButton}
-                    onPress={() => deleteCustomTemplate(template.id)}
-                  >
-                    <Text style={styles.deleteTemplateText}>🗑️</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              
-              <Text style={styles.templateDescription}>{template.description}</Text>
-              
-              <View style={styles.templateDetails}>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Work:</Text>
-                  <Text style={styles.detailValue}>
-                    {templateManager.formatDuration(template.workDuration)}
-                  </Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Break:</Text>
-                  <Text style={styles.detailValue}>
-                    {templateManager.formatDuration(template.breakDuration)}
-                  </Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Long Break:</Text>
-                  <Text style={styles.detailValue}>
-                    {templateManager.formatDuration(template.longBreakDuration)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.templateFooter}>
-                <Text style={styles.categoryTag}>
-                  {getCategoryName(template.category)}
+            <View style={styles.templateHeader}>
+              <Text style={[styles.templateIcon]}>{template.icon}</Text>
+              <View style={styles.templateInfo}>
+                <Text style={[styles.templateName, { color: theme.text }]}>{template.name}</Text>
+                <Text style={[styles.templateDescription, { color: theme.textSecondary }]}>
+                  {template.description}
                 </Text>
-                {template.isCustom && (
-                  <Text style={styles.customTag}>Custom</Text>
-                )}
               </View>
-            </LinearGradient>
+            </View>
+            
+            <View style={[styles.templateDetails, { borderTopColor: theme.border }]}>
+              <View style={styles.detailItem}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Work</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
+                  {templateManager.formatDuration(template.workDuration)}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Break</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
+                  {templateManager.formatDuration(template.breakDuration)}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>Sessions</Text>
+                <Text style={[styles.detailValue, { color: theme.text }]}>
+                  {template.sessionsBeforeLongBreak}
+                </Text>
+              </View>
+            </View>
           </TouchableOpacity>
         ))}
+      </View>
 
-        {filteredTemplates.length === 0 && (
-          <Text style={styles.emptyText}>
-            No templates found for {getCategoryName(selectedCategory).toLowerCase()}.
-          </Text>
-        )}
-      </ScrollView>
-
-      {/* Create Template Modal */}
-      <Modal
-        visible={isCreating}
-        animationType="slide"
-        transparent={true}
+      <TouchableOpacity
+        style={[styles.createButton, { backgroundColor: theme.primary }]}
+        onPress={() => setIsCreating(true)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Create Custom Template</Text>
-            
-            <ScrollView style={styles.modalContent}>
-              <Text style={styles.label}>Template Name:</Text>
-              <TextInput
-                style={styles.input}
-                value={newTemplate.name}
-                onChangeText={(text) => setNewTemplate({ ...newTemplate, name: text })}
-                placeholder="Enter template name"
-              />
+        <Text style={styles.buttonText}>Create Custom Template</Text>
+      </TouchableOpacity>
 
-              <Text style={styles.label}>Description:</Text>
-              <TextInput
-                style={styles.input}
-                value={newTemplate.description}
-                onChangeText={(text) => setNewTemplate({ ...newTemplate, description: text })}
-                placeholder="Enter description"
-                multiline
-              />
-
-              <Text style={styles.label}>Category:</Text>
-              <View style={styles.categorySelector}>
-                {['focus', 'review', 'exam', 'reading', 'problem-solving'].map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryOption,
-                      newTemplate.category === category && styles.selectedCategoryOption
-                    ]}
-                    onPress={() => setNewTemplate({ ...newTemplate, category })}
-                  >
-                    <Text style={[
-                      styles.categoryOptionText,
-                      newTemplate.category === category && styles.selectedCategoryOptionText
-                    ]}>
-                      {getCategoryIcon(category)} {getCategoryName(category)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.label}>Durations (in minutes):</Text>
-              <View style={styles.durationContainer}>
-                <View style={styles.durationItem}>
-                  <Text style={styles.durationLabel}>Work:</Text>
-                  <TextInput
-                    style={styles.durationInput}
-                    value={String(newTemplate.workDuration / 60)}
-                    onChangeText={(text) => updateDuration('workDuration', text)}
-                    keyboardType="numeric"
-                    placeholder="25"
-                  />
-                </View>
-                <View style={styles.durationItem}>
-                  <Text style={styles.durationLabel}>Break:</Text>
-                  <TextInput
-                    style={styles.durationInput}
-                    value={String(newTemplate.breakDuration / 60)}
-                    onChangeText={(text) => updateDuration('breakDuration', text)}
-                    keyboardType="numeric"
-                    placeholder="5"
-                  />
-                </View>
-                <View style={styles.durationItem}>
-                  <Text style={styles.durationLabel}>Long Break:</Text>
-                  <TextInput
-                    style={styles.durationInput}
-                    value={String(newTemplate.longBreakDuration / 60)}
-                    onChangeText={(text) => updateDuration('longBreakDuration', text)}
-                    keyboardType="numeric"
-                    placeholder="15"
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.label}>Sessions before long break:</Text>
-              <TextInput
-                style={styles.input}
-                value={String(newTemplate.sessionsBeforeLongBreak)}
-                onChangeText={(text) => setNewTemplate({
-                  ...newTemplate,
-                  sessionsBeforeLongBreak: parseInt(text) || 4
-                })}
-                keyboardType="numeric"
-                placeholder="4"
-              />
-            </ScrollView>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsCreating(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.createModalButton]}
-                onPress={createCustomTemplate}
-              >
-                <Text style={styles.modalButtonText}>Create</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeButtonText}>Close</Text>
+      <TouchableOpacity
+        style={[styles.closeButton, { backgroundColor: theme.surface }]}
+        onPress={onClose}
+      >
+        <Text style={[styles.closeButtonText, { color: theme.text }]}>Close</Text>
       </TouchableOpacity>
     </View>
   );
@@ -500,251 +356,99 @@ const TimerTemplates = ({ subject, onTemplateSelect, onClose }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: 12,
+    paddingTop: 0,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+  topSection: {
+    marginTop: 8,
   },
-  categoryContainer: {
-    marginBottom: 20,
+  categoryScroll: {
+    height: 40,
   },
   categoryButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
+    height: 40,
+    paddingHorizontal: 14,
+    marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
   },
-  selectedCategory: {
-    backgroundColor: '#007AFF',
+  categoryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryIcon: {
+    fontSize: 16,
+    marginRight: 6,
   },
   categoryText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
   },
-  selectedCategoryText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  mainContent: {
+    marginTop: 8,
   },
-  createButton: {
-    marginBottom: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  createGradient: {
-    padding: 15,
-    alignItems: 'center',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  templatesContainer: {
-    flex: 1,
-  },
-  templateItem: {
-    marginBottom: 15,
-    borderRadius: 15,
-    overflow: 'hidden',
-  },
-  templateGradient: {
-    padding: 20,
+  templateCard: {
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
   },
   templateHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   templateIcon: {
     fontSize: 24,
-    marginRight: 10,
+    marginRight: 12,
+  },
+  templateInfo: {
+    flex: 1,
   },
   templateName: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  deleteTemplateButton: {
-    padding: 5,
-  },
-  deleteTemplateText: {
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   templateDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 15,
+    fontSize: 13,
+    lineHeight: 18,
   },
   templateDetails: {
-    marginBottom: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
   },
   detailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
+    alignItems: 'center',
   },
   detailLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginBottom: 2,
   },
   detailValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  templateFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  createButton: {
+    padding: 14,
     borderRadius: 12,
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  customTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
-    marginTop: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
     alignItems: 'center',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalContent: {
-    maxHeight: 400,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    marginTop: 15,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  categorySelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  categoryOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    marginRight: 8,
     marginBottom: 8,
   },
-  selectedCategoryOption: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryOptionText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  selectedCategoryOptionText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  durationContainer: {
-    marginBottom: 10,
-  },
-  durationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  durationLabel: {
+  buttonText: {
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    width: 80,
-  },
-  durationInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#8E8E93',
-  },
-  createModalButton: {
-    backgroundColor: '#007AFF',
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   closeButton: {
-    backgroundColor: '#8E8E93',
-    padding: 15,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
   },
   closeButtonText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
 });
 
