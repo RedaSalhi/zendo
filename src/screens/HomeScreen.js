@@ -31,7 +31,7 @@ import { getMotivationalMessage } from '../utils/timeUtils';
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { theme, themeName } = useTheme();
-  const { sessionsCompleted, isWork, currentTime } = useTimer();
+  const { sessionsCompleted, isWork, currentTime, resetTimer } = useTimer();
   
   const headerOpacity = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
@@ -144,6 +144,32 @@ export default function HomeScreen() {
             accessibilityRole="toolbar"
           >
             <StartPauseButton />
+            <TouchableOpacity
+              style={[styles.resetButton, { backgroundColor: theme.surface }]}
+              onPress={resetTimer}
+              activeOpacity={0.8}
+              accessible={true}
+              accessibilityLabel="Reset Timer"
+              accessibilityHint="Resets the timer to its initial duration"
+              accessibilityRole="button"
+            >
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                  stroke={theme.textSecondary}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Path
+                  d="M3 3v5h5"
+                  stroke={theme.textSecondary}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
           </View>
 
           {/* Main action tabs as vertical stack */}
@@ -313,5 +339,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 16,
+  },
+  resetButton: {
+    marginLeft: 16,
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });

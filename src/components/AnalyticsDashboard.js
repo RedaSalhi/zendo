@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
-import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { LineChart, BarChart, PieChart, ProgressChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import { format } from 'date-fns';
 import useAnalyticsStore from '../store/analyticsStore';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -29,15 +30,39 @@ const AnalyticsDashboard = () => {
     studySessions,
     focusMetrics,
     streaks,
+    subjectMetrics,
+    learningPatterns,
+    goals,
     peakProductivityHours,
     loadSavedData,
   } = useAnalyticsStore();
 
   const [selectedDate] = useState(new Date());
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   useEffect(() => {
     loadSavedData();
   }, []);
+
+  // Validate and sanitize numerical data
+  const sanitizeNumber = (value, fallback = 0) => {
+    const num = parseFloat(value);
+    return isNaN(num) || !isFinite(num) ? fallback : num;
+  };
+
+  // Ensure array has at least one valid data point
+  const ensureValidData = (data, labels) => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return {
+        labels: ['No Data'],
+        data: [0],
+      };
+    }
+    return {
+      labels,
+      data: data.map(val => sanitizeNumber(val)),
+    };
+  };
 
   const dailyStudyTime = getDailyStudyTimeBySubject(studySessions, selectedDate);
   const weeklyStudyTime = getWeeklyStudyTimeBySubject(studySessions, selectedDate);
@@ -68,54 +93,118 @@ const AnalyticsDashboard = () => {
     },
   };
 
-  // Prepare data for charts with validation
-  const dailyStudyData = {
-    labels: Object.keys(dailyStudyTime),
-    datasets: [{
-      data: Object.values(dailyStudyTime).map(value => {
-        const num = parseFloat(value);
-        return isNaN(num) ? 0 : Math.max(0, Math.round(num));
-      }),
-    }],
+  // Goals Progress Data with validation
+  const goalsData = {
+    labels: ['Daily', 'Weekly', 'Streak'],
+    data: [
+      sanitizeNumber(goals?.daily?.achieved / (goals?.daily?.target || 1), 0),
+      sanitizeNumber(goals?.weekly?.achieved / (goals?.weekly?.target || 1), 0),
+      sanitizeNumber(goals?.streak?.achieved / (goals?.streak?.target || 1), 0),
+    ].map(val => Math.min(1, Math.max(0, val))), // Ensure values are between 0 and 1
   };
 
+  // Focus Quality Data with validation
   const focusQualityData = [
     {
-      name: 'Completed',
-      population: Math.max(0, Math.round(focusQuality.completed)),
+      name: 'Deep Focus',
+      population: sanitizeNumber(focusMetrics?.deepFocusPeriods),
       color: theme.success,
       legendFontColor: theme.textSecondary,
     },
     {
-      name: 'Abandoned',
-      population: Math.max(0, Math.round(focusQuality.abandoned)),
+      name: 'Completed',
+      population: sanitizeNumber(focusMetrics?.completed),
+      color: theme.primary,
+      legendFontColor: theme.textSecondary,
+    },
+    {
+      name: 'Interrupted',
+      population: sanitizeNumber(focusMetrics?.interruptions),
       color: theme.warning,
       legendFontColor: theme.textSecondary,
     },
-  ];
+    {
+      name: 'Abandoned',
+      population: sanitizeNumber(focusMetrics?.abandoned),
+      color: theme.error,
+      legendFontColor: theme.textSecondary,
+    },
+  ].filter(item => item.population > 0); // Only show non-zero values
 
-  const peakHoursData = {
-    labels: peakHours.slice(0, 6).map(hour => `${hour.hour}:00`),
-    datasets: [{
-      data: peakHours.slice(0, 6).map(hour => {
-        const num = parseFloat(hour.duration);
-        return isNaN(num) ? 0 : Math.max(0, Math.round(num));
-      }),
-    }],
+  // Subject Performance Data with validation
+  const subjectPerformanceData = {
+    labels: Object.keys(subjectMetrics || {}),
+    datasets: [
+      {
+        data: Object.values(subjectMetrics || {}).map(metrics => 
+          sanitizeNumber(metrics?.averageScore)
+        ),
+        color: (opacity = 1) => getRGBA(theme.primary, opacity),
+      },
+    ],
   };
 
-  // Ensure we have at least one data point for each chart
-  const isEmptyDaily = dailyStudyData.datasets[0].data.length === 0 || dailyStudyData.datasets[0].data.every(v => v === 0);
-  const isEmptyPeak = peakHoursData.datasets[0].data.length === 0 || peakHoursData.datasets[0].data.every(v => v === 0);
+  // Ensure we have at least one data point
+  if (subjectPerformanceData.labels.length === 0) {
+    subjectPerformanceData.labels = ['No Data'];
+    subjectPerformanceData.datasets[0].data = [0];
+  }
 
-  if (isEmptyDaily) {
-    dailyStudyData.datasets[0].data = [0];
-    dailyStudyData.labels = ['No Data'];
-  }
-  if (isEmptyPeak) {
-    peakHoursData.datasets[0].data = [0];
+  // Peak Hours Data with validation
+  const peakHoursData = {
+    labels: Object.keys(peakProductivityHours || {})
+      .map(hour => `${hour}:00`)
+      .slice(0, 8), // Limit to 8 hours for better visibility
+    datasets: [
+      {
+        data: Object.values(peakProductivityHours || {})
+          .map(metrics => sanitizeNumber(metrics?.averageFocusScore))
+          .slice(0, 8),
+      },
+    ],
+  };
+
+  // Ensure we have at least one data point
+  if (peakHoursData.labels.length === 0) {
     peakHoursData.labels = ['No Data'];
+    peakHoursData.datasets[0].data = [0];
   }
+
+  const renderLearningInsights = () => {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return (
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Learning Insights</Text>
+        <View style={styles.insightsContainer}>
+          <View style={styles.insightItem}>
+            <Text style={[styles.insightLabel, { color: theme.textSecondary }]}>Best Study Time</Text>
+            <Text style={[styles.insightValue, { color: theme.text }]}>
+              {learningPatterns?.bestTimeOfDay != null ? 
+                `${learningPatterns.bestTimeOfDay}:00` : 
+                'Not enough data'}
+            </Text>
+          </View>
+          <View style={styles.insightItem}>
+            <Text style={[styles.insightLabel, { color: theme.textSecondary }]}>Best Study Day</Text>
+            <Text style={[styles.insightValue, { color: theme.text }]}>
+              {learningPatterns?.bestDayOfWeek != null ? 
+                dayNames[learningPatterns.bestDayOfWeek] : 
+                'Not enough data'}
+            </Text>
+          </View>
+          <View style={styles.insightItem}>
+            <Text style={[styles.insightLabel, { color: theme.textSecondary }]}>Most Productive Subject</Text>
+            <Text style={[styles.insightValue, { color: theme.text }]}>
+              {learningPatterns?.mostProductiveSubject || 'Not enough data'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Check if we have any data to display
+  const hasNoData = !studySessions || studySessions.length === 0;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}> 
@@ -128,82 +217,108 @@ const AnalyticsDashboard = () => {
       <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 32 }}>
         <Text style={[styles.title, { color: theme.text }]}>Study Analytics</Text>
 
-        {/* Study Streak */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}> 
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Study Streak</Text>
-          <View style={styles.streakContainer}>
-            <View style={styles.streakItem}>
-              <Text style={[styles.streakNumber, { color: theme.primary }]}>
-                {Math.max(0, Math.round(streaks.current))}
-              </Text>
-              <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>Current</Text>
+        {hasNoData ? (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+            <Text style={[styles.noDataText, { color: theme.text }]}>
+              No study sessions recorded yet. Start a study session to see your analytics!
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* Goals Progress */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Goals Progress</Text>
+              <View style={styles.chartContainer}>
+                <ProgressChart
+                  data={goalsData}
+                  width={chartWidth}
+                  height={220}
+                  chartConfig={chartConfig}
+                  hideLegend={false}
+                  style={styles.chart}
+                />
+              </View>
+              <View style={styles.goalsLegend}>
+                <Text style={[styles.goalText, { color: theme.text }]}>
+                  Daily: {sanitizeNumber(goals?.daily?.achieved)}/{goals?.daily?.target || 0} min
+                </Text>
+                <Text style={[styles.goalText, { color: theme.text }]}>
+                  Weekly: {sanitizeNumber(goals?.weekly?.achieved)}/{goals?.weekly?.target || 0} min
+                </Text>
+                <Text style={[styles.goalText, { color: theme.text }]}>
+                  Streak: {sanitizeNumber(goals?.streak?.achieved)}/{goals?.streak?.target || 0} days
+                </Text>
+              </View>
             </View>
-            <View style={styles.streakItem}>
-              <Text style={[styles.streakNumber, { color: theme.primary }]}>
-                {Math.max(0, Math.round(streaks.longest))}
-              </Text>
-              <Text style={[styles.streakLabel, { color: theme.textSecondary }]}>Longest</Text>
+
+            {/* Learning Insights */}
+            {renderLearningInsights()}
+
+            {/* Focus Quality */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Focus Quality</Text>
+              {focusQualityData.length > 0 ? (
+                <View style={styles.chartContainer}>
+                  <PieChart
+                    data={focusQualityData}
+                    width={chartWidth}
+                    height={220}
+                    chartConfig={chartConfig}
+                    accessor="population"
+                    backgroundColor="transparent"
+                    paddingLeft="15"
+                    style={styles.chart}
+                    hasLegend
+                  />
+                </View>
+              ) : (
+                <Text style={[styles.noDataText, { color: theme.textSecondary }]}>
+                  No focus data available yet
+                </Text>
+              )}
+              <View style={styles.focusStats}>
+                <Text style={[styles.focusStat, { color: theme.text }]}>
+                  Deep Focus Periods: {sanitizeNumber(focusMetrics?.deepFocusPeriods)}
+                </Text>
+                <Text style={[styles.focusStat, { color: theme.text }]}>
+                  Total Focus Time: {Math.floor(sanitizeNumber(focusMetrics?.totalFocusTime) / 60)} minutes
+                </Text>
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* Daily Study Time */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}> 
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Daily Study Time by Subject</Text>
-          <View style={styles.chartContainer}>
-            <BarChart
-              data={dailyStudyData}
-              width={chartWidth}
-              height={220}
-              yAxisLabel=""
-              chartConfig={chartConfig}
-              style={styles.chart}
-              showValuesOnTopOfBars
-              fromZero
-            />
-            {isEmptyDaily && (
-              <Text style={[styles.emptyState, { color: theme.textSecondary }]}>No study sessions yet. Start a session to see analytics!</Text>
-            )}
-          </View>
-        </View>
+            {/* Subject Performance */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Subject Performance</Text>
+              <View style={styles.chartContainer}>
+                <BarChart
+                  data={subjectPerformanceData}
+                  width={chartWidth}
+                  height={220}
+                  chartConfig={chartConfig}
+                  style={styles.chart}
+                  showValuesOnTopOfBars
+                  fromZero
+                />
+              </View>
+            </View>
 
-        {/* Focus Quality */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}> 
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Focus Quality</Text>
-          <View style={styles.chartContainer}>
-            <PieChart
-              data={focusQualityData}
-              width={chartWidth}
-              height={220}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              style={styles.chart}
-              hasLegend
-            />
-          </View>
-          <Text style={[styles.completionRate, { color: theme.text }]}>Completion Rate: {Math.max(0, Math.min(100, Math.round(focusQuality.completionRate))).toFixed(1)}%</Text>
-        </View>
-
-        {/* Peak Productivity Hours */}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}> 
-          <Text style={[styles.cardTitle, { color: theme.text }]}>Peak Productivity Hours</Text>
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={peakHoursData}
-              width={chartWidth}
-              height={220}
-              chartConfig={chartConfig}
-              style={styles.chart}
-              bezier
-              fromZero
-            />
-            {isEmptyPeak && (
-              <Text style={[styles.emptyState, { color: theme.textSecondary }]}>No productivity data yet. Start a session to see analytics!</Text>
-            )}
-          </View>
-        </View>
+            {/* Peak Productivity Hours */}
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: getRGBA(theme.textSecondary, 0.08) }]}>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Peak Productivity Hours</Text>
+              <View style={styles.chartContainer}>
+                <LineChart
+                  data={peakHoursData}
+                  width={chartWidth}
+                  height={220}
+                  chartConfig={chartConfig}
+                  style={styles.chart}
+                  bezier
+                  fromZero
+                />
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -256,33 +371,44 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'transparent',
   },
-  streakContainer: {
+  goalsLegend: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 10,
+    marginTop: 16,
   },
-  streakItem: {
+  goalText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  insightsContainer: {
+    flexDirection: 'column',
+    gap: 16,
+  },
+  insightItem: {
+    marginBottom: 12,
+  },
+  insightLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  insightValue: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  focusStats: {
+    marginTop: 16,
     alignItems: 'center',
   },
-  streakNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  streakLabel: {
+  focusStat: {
     fontSize: 14,
-    marginTop: 4,
+    fontWeight: '500',
+    marginBottom: 8,
   },
-  completionRate: {
+  noDataText: {
     textAlign: 'center',
     fontSize: 16,
-    fontWeight: '600',
-    marginTop: 10,
-  },
-  emptyState: {
-    textAlign: 'center',
-    fontSize: 14,
-    marginTop: 12,
     fontStyle: 'italic',
+    padding: 20,
   },
 });
 
